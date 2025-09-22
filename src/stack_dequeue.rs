@@ -8,6 +8,10 @@ pub struct StackDequeue<T, const N: usize> {
 }
 
 impl<T, const N: usize> StackDequeue<T, N> {
+    /// ```
+    /// use kuina::stack_dequeue::StackDequeue;
+    /// let deque: StackDequeue<u16; 5> = StackDequeue::new();
+    /// ```
     pub fn new() -> Self {
         Self {
             data: [const { MaybeUninit::uninit() }; N],
@@ -16,6 +20,13 @@ impl<T, const N: usize> StackDequeue<T, N> {
         }
     }
 
+    /// ```
+    /// use kuina::stack_dequeue::StackDequeue;
+    /// let mut buf = StackDequeue::<_, 2>::new();
+    /// buf.push_back(1);
+    /// buf.push_back(3);
+    /// assert_eq!(3, *buf.back().unwrap());
+    /// ```
     pub fn push_back(&mut self, value: T) {
         self.push_back_mut(value);
     }

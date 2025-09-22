@@ -134,3 +134,33 @@ impl<T, const N: usize> Iterator for IntoIter<T, N> {
 }
 
 impl<T, const N: usize> ExactSizeIterator for IntoIter<T, N> {}
+
+macro_rules! __impl_slice_eq1 {
+   ([$($vars:tt)*] $lhs:ty, $rhs:ty $(where $ty:ty: $bound:ident)?) => {
+       impl<T, U, const N: usize, $($vars)*> PartialEq<$rhs> for $lhs
+        where
+            T: PartialEq<U>,
+            $($ty: $bound)?
+        {
+            #[inline]
+            fn eq(&self, other: &$rhs) -> bool { self[..] == other[..] }
+            #[inline]
+            fn ne(&self, other: &$rhs) -> bool { self[..] != other[..] }
+        }
+    }
+}
+
+__impl_slice_eq1! {[const M: usize] StackVec<T, N>, [U; M]}
+
+impl<T, U, const N: usize, const M: usize> PartialEq<&[U; M]> for StackVec<T, N>
+where
+    T: PartialEq<U>,
+{
+    fn eq(&self, other: &&[U; M]) -> bool {
+        self[..] == other[..]
+    }
+
+    fn ne(&self, other: &&[U; M]) -> bool {
+        self[..] != other[..]
+    }
+}
