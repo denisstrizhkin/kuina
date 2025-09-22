@@ -28,6 +28,11 @@ impl<T, const N: usize> StackVec<T, N> {
         self.data[self.size].write(value);
         self.size += 1;
     }
+
+    pub fn pop(&mut self) -> Option<T> {
+        self.size = self.size.checked_sub(1)?;
+        unsafe { Some(self.data[self.size].assume_init_read()) }
+    }
 }
 
 impl<T, const N: usize> From<[T; N]> for StackVec<T, N> {
