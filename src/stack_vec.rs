@@ -23,6 +23,13 @@ impl<T, const N: usize> StackVec<T, N> {
         }
     }
 
+    /// ```
+    /// use kuina::stack_vec::StackVec;
+    /// let mut v = StackVec::<_, 5>::new();
+    /// v.push(1);
+    /// v.push(2);
+    /// assert_eq!(v, [1, 2]);
+    /// ```
     pub fn push(&mut self, value: T) {
         assert!(self.size < N);
         unsafe { self.data.get_unchecked_mut(self.size).write(value) };
@@ -37,6 +44,15 @@ impl<T, const N: usize> StackVec<T, N> {
         self.size += 1;
     }
 
+    /// ```
+    /// use kuina::stack_vec::StackVec;
+    /// let mut v = StackVec::<_, 5>::new();
+    /// v.push(1);
+    /// v.push(2);
+    /// assert_eq!(v.pop(), Some(2));
+    /// assert_eq!(v.pop(), Some(1));
+    /// assert_eq!(v.pop(), None);
+    /// ```
     pub fn pop(&mut self) -> Option<T> {
         self.size = self.size.checked_sub(1)?;
         unsafe { Some(self.data.get_unchecked_mut(self.size).assume_init_read()) }
