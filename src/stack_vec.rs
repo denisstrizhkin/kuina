@@ -24,7 +24,13 @@ impl<T, const N: usize> StackVec<T, N> {
     }
 
     pub fn push(&mut self, value: T) {
-        assert_ne!(self.size, N, "StackVec is at max size");
+        assert!(self.size < N);
+        self.data[self.size].write(value);
+        self.size += 1;
+    }
+
+    pub fn push_unchecked(&mut self, value: T) {
+        debug_assert!(self.size < N);
         self.data[self.size].write(value);
         self.size += 1;
     }
@@ -32,6 +38,14 @@ impl<T, const N: usize> StackVec<T, N> {
     pub fn pop(&mut self) -> Option<T> {
         self.size = self.size.checked_sub(1)?;
         unsafe { Some(self.data[self.size].assume_init_read()) }
+    }
+}
+
+impl<T, const N: usize> Drop for StackVec<T, N> {
+    fn drop(&mut self) {
+        for item in self.data[..self.size].iter_mut() {
+            unsafe { item.assume_init_drop() }
+        }
     }
 }
 
@@ -59,10 +73,46 @@ impl<T, const N: usize> DerefMut for StackVec<T, N> {
     }
 }
 
-impl<T, const N: usize> Drop for StackVec<T, N> {
+impl<T, const N: usize> IntoIterator for StackVec<T, N> {
+    type Item = T;
+    type IntoIter = IntoIter<T, N>;
+    fn into_iter(self) -> Self::IntoIter {
+        IntoIter {
+            index: 0,
+            vec: self,
+        }
+    }
+}
+
+pub struct IntoIter<T, const N: usize> {
+    index: usize,
+    vec: StackVec<T, N>,
+}
+
+impl<T, const N: usize> Drop for IntoIter<T, N> {
     fn drop(&mut self) {
-        for item in self.data[..self.size].iter_mut() {
+        let len = self.vec.data.len();
+        self.vec.size = 0;
+        for item in self.vec.data[self.index..len].iter_mut() {
             unsafe { item.assume_init_drop() }
         }
     }
 }
+
+impl<T, const N: usize> Iterator for IntoIter<T, N> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        (self.index < self.vec.len()).then(|| {
+            let index = self.index;
+            self.index += 1;
+            unsafe { self.vec.data[index].assume_init_read() }
+        })
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.vec.len() - self.index, Some(self.vec.len()))
+    }
+}
+
+impl<T, const N: usize> ExactSizeIterator for IntoIter<T, N> {}
