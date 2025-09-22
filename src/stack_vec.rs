@@ -25,19 +25,21 @@ impl<T, const N: usize> StackVec<T, N> {
 
     pub fn push(&mut self, value: T) {
         assert!(self.size < N);
-        self.data[self.size].write(value);
+        unsafe { self.data.get_unchecked_mut(self.size).write(value) };
         self.size += 1;
     }
 
-    pub fn push_unchecked(&mut self, value: T) {
+    /// # Safety
+    /// caller must ensure that current size is less than N
+    pub unsafe fn push_unchecked(&mut self, value: T) {
         debug_assert!(self.size < N);
-        self.data[self.size].write(value);
+        unsafe { self.data.get_unchecked_mut(self.size).write(value) };
         self.size += 1;
     }
 
     pub fn pop(&mut self) -> Option<T> {
         self.size = self.size.checked_sub(1)?;
-        unsafe { Some(self.data[self.size].assume_init_read()) }
+        unsafe { Some(self.data.get_unchecked_mut(self.size).assume_init_read()) }
     }
 }
 
@@ -106,7 +108,7 @@ impl<T, const N: usize> Iterator for IntoIter<T, N> {
         (self.index < self.vec.len()).then(|| {
             let index = self.index;
             self.index += 1;
-            unsafe { self.vec.data[index].assume_init_read() }
+            unsafe { self.vec.data.get_unchecked_mut(index).assume_init_read() }
         })
     }
 
