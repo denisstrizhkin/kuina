@@ -1,3 +1,4 @@
+use core::fmt;
 use std::{
     mem::MaybeUninit,
     ops::{Deref, DerefMut},
@@ -151,16 +152,10 @@ macro_rules! __impl_slice_eq1 {
 }
 
 __impl_slice_eq1! {[const M: usize] StackVec<T, N>, [U; M]}
+__impl_slice_eq1! {[const M: usize] StackVec<T, N>, &[U; M]}
 
-impl<T, U, const N: usize, const M: usize> PartialEq<&[U; M]> for StackVec<T, N>
-where
-    T: PartialEq<U>,
-{
-    fn eq(&self, other: &&[U; M]) -> bool {
-        self[..] == other[..]
-    }
-
-    fn ne(&self, other: &&[U; M]) -> bool {
-        self[..] != other[..]
+impl<T: fmt::Debug, const N: usize> fmt::Debug for StackVec<T, N> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_list().entries(self.iter()).finish()
     }
 }
