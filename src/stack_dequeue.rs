@@ -236,7 +236,7 @@ impl<T, const N: usize> StackDequeue<T, N> {
     pub fn as_slices(&self) -> (&[T], &[T]) {
         let ptr1 = self.data[self.start..].as_ptr() as *const T;
         let len1 = (N - self.start).min(self.size);
-        let ptr2 = self.data[self.get_index(len1)..].as_ptr() as *const T;
+        let ptr2 = self.data[0..].as_ptr() as *const T;
         let len2 = self.size - len1;
         unsafe {
             (
@@ -268,7 +268,7 @@ impl<T, const N: usize> StackDequeue<T, N> {
     pub fn as_mut_slices(&mut self) -> (&mut [T], &mut [T]) {
         let ptr1 = self.data[self.start..].as_ptr() as *mut T;
         let len1 = (N - self.start).min(self.size);
-        let ptr2 = self.data[self.get_index(len1)..].as_ptr() as *mut T;
+        let ptr2 = self.data[0..].as_ptr() as *mut T;
         let len2 = self.size - len1;
         unsafe {
             (
@@ -306,6 +306,18 @@ impl<T, const N: usize> StackDequeue<T, N> {
     /// ```
     pub fn iter_mut<'a>(&'a mut self) -> IterMut<'a, T, N> {
         self.into_iter()
+    }
+}
+
+impl<T, const N: usize> Drop for StackDequeue<T, N> {
+    fn drop(&mut self) {
+        let len = (N - self.start).min(self.size);
+        self.data[self.start..self.start + len]
+            .iter_mut()
+            .for_each(|item| unsafe { item.assume_init_drop() });
+        self.data[0..self.size - len]
+            .iter_mut()
+            .for_each(|item| unsafe { item.assume_init_drop() });
     }
 }
 
