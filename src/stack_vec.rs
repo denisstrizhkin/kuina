@@ -153,6 +153,9 @@ macro_rules! __impl_slice_eq1 {
 
 __impl_slice_eq1! {[const M: usize] StackVec<T, N>, [U; M]}
 __impl_slice_eq1! {[const M: usize] StackVec<T, N>, &[U; M]}
+__impl_slice_eq1! {[const M: usize] StackVec<T, N>, &mut [U; M]}
+__impl_slice_eq1! {[] StackVec<T, N>, &[U]}
+__impl_slice_eq1! {[] StackVec<T, N>, &mut [U]}
 
 impl<T: fmt::Debug, const N: usize> fmt::Debug for StackVec<T, N> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
