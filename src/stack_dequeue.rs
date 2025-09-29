@@ -35,7 +35,7 @@ impl<T, const N: usize> StackDequeue<T, N> {
         self.size
     }
 
-    fn get_idx(&self, index: usize) -> usize {
+    fn get_index(&self, index: usize) -> usize {
         let index = self.start + index;
         if index < N { index } else { index - N }
     }
@@ -50,7 +50,10 @@ impl<T, const N: usize> StackDequeue<T, N> {
     /// assert_eq!(deq.get(1), Some(&4));
     /// ```
     pub fn get(&self, index: usize) -> Option<&T> {
-        (index < self.size).then(|| unsafe { self.data.get_unchecked(index).assume_init_ref() })
+        (index < self.size).then(|| {
+            let index = self.get_index(index);
+            unsafe { self.data.get_unchecked(index).assume_init_ref() }
+        })
     }
 
     /// ```
@@ -67,7 +70,10 @@ impl<T, const N: usize> StackDequeue<T, N> {
     /// assert_eq!(deq[1], 7);
     /// ```
     pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
-        (index < self.size).then(|| unsafe { self.data.get_unchecked_mut(index).assume_init_mut() })
+        (index < self.size).then(|| {
+            let index = self.get_index(index);
+            unsafe { self.data.get_unchecked_mut(index).assume_init_mut() }
+        })
     }
 
     /// ```
@@ -148,9 +154,9 @@ impl<T, const N: usize> StackDequeue<T, N> {
     /// ```
     pub fn push_back_mut(&mut self, value: T) -> &mut T {
         assert!(self.size < N);
-        let idx = self.get_idx(self.size);
+        let index = self.get_index(self.size);
         self.size += 1;
-        unsafe { self.data.get_unchecked_mut(idx).write(value) }
+        unsafe { self.data.get_unchecked_mut(index).write(value) }
     }
 
     /// ```
@@ -165,7 +171,7 @@ impl<T, const N: usize> StackDequeue<T, N> {
     pub fn pop_front(&mut self) -> Option<T> {
         self.size = self.size.checked_sub(1)?;
         let start = self.start;
-        self.start = self.get_idx(1);
+        self.start = self.get_index(1);
         unsafe { Some(self.data.get_unchecked(start).assume_init_read()) }
     }
 
@@ -192,9 +198,8 @@ impl<T, const N: usize> StackDequeue<T, N> {
     pub fn push_front_mut(&mut self, value: T) -> &mut T {
         assert!(self.size < N);
         self.size += 1;
-        let start = self.start;
         self.start = self.start.checked_sub(1).unwrap_or(N - 1);
-        unsafe { self.data.get_unchecked_mut(start).write(value) }
+        unsafe { self.data.get_unchecked_mut(self.start).write(value) }
     }
 
     /// ```
@@ -207,8 +212,8 @@ impl<T, const N: usize> StackDequeue<T, N> {
     /// ```
     pub fn pop_back(&mut self) -> Option<T> {
         self.size = self.size.checked_sub(1)?;
-        let idx = self.get_idx(self.size);
-        unsafe { Some(self.data.get_unchecked(idx).assume_init_read()) }
+        let index = self.get_index(self.size);
+        unsafe { Some(self.data.get_unchecked(index).assume_init_read()) }
     }
 
     /// ```
@@ -231,7 +236,7 @@ impl<T, const N: usize> StackDequeue<T, N> {
     pub fn as_slices(&self) -> (&[T], &[T]) {
         let ptr1 = self.data[self.start..].as_ptr() as *const T;
         let len1 = (N - self.start).min(self.size);
-        let ptr2 = self.data[self.get_idx(self.start + len1)..].as_ptr() as *const T;
+        let ptr2 = self.data[self.get_index(len1)..].as_ptr() as *const T;
         let len2 = self.size - len1;
         unsafe {
             (
@@ -263,7 +268,7 @@ impl<T, const N: usize> StackDequeue<T, N> {
     pub fn as_mut_slices(&mut self) -> (&mut [T], &mut [T]) {
         let ptr1 = self.data[self.start..].as_ptr() as *mut T;
         let len1 = (N - self.start).min(self.size);
-        let ptr2 = self.data[self.get_idx(self.start + len1)..].as_ptr() as *mut T;
+        let ptr2 = self.data[self.get_index(len1)..].as_ptr() as *mut T;
         let len2 = self.size - len1;
         unsafe {
             (
@@ -465,6 +470,35 @@ impl<T, const N: usize> IndexMut<usize> for StackDequeue<T, N> {
 impl<T: fmt::Debug, const N: usize> fmt::Debug for StackDequeue<T, N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_list().entries(self.iter()).finish()
+    }
+}
+
+impl<T: PartialEq, const N: usize> PartialEq for StackDequeue<T, N> {
+    fn eq(&self, other: &Self) -> bool {
+        if self.len() != other.len() {
+            return false;
+        }
+        let (sa, sb) = self.as_slices();
+        let (oa, ob) = other.as_slices();
+        if sa.len() < oa.len() {
+            let front = sa.len();
+            let mid = oa.len() - front;
+            let (oa_front, oa_mid) = oa.split_at(front);
+            let (sb_mid, sb_back) = sb.split_at(mid);
+            debug_assert_eq!(sa.len(), oa_front.len());
+            debug_assert_eq!(sb_mid.len(), oa_mid.len());
+            debug_assert_eq!(sb_back.len(), ob.len());
+            sa == oa_front && sb_mid == oa_mid && ob == sb_back
+        } else {
+            let front = oa.len();
+            let mid = sa.len() - front;
+            let (sa_front, sa_mid) = sa.split_at(front);
+            let (ob_mid, ob_back) = ob.split_at(mid);
+            debug_assert_eq!(oa.len(), sa_front.len());
+            debug_assert_eq!(ob_mid.len(), sa_mid.len());
+            debug_assert_eq!(ob_back.len(), sb.len());
+            oa == sa_front && ob_mid == sa_mid && ob_back == sb
+        }
     }
 }
 
